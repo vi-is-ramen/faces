@@ -1,6 +1,6 @@
 [package]
 name = "faces"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Some primitives and a huge bunch of ready traits for any needs."
@@ -13,3 +13,7 @@ repository = "https://github.com/vi-is-ramen/faces"
 [dependencies]
 log = { version = "0.4.31", default-features = false }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+
+[features]
+std = []
+default = ["std"]
