@@ -1,10 +1,13 @@
 [package]
 name = "faces"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Some primitives and a huge bunch of ready traits for any needs."
 readme = "README.md"
 authors = ["Ivan Chetchasov <vi.is.chapmann@gmail.com>"]
+documentation = "https://docs.rs/faces/"
+homepage = "https://github.com/vi-is-ramen/faces"
+repository = "https://github.com/vi-is-ramen/faces"
 
 [dependencies]
