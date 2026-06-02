@@ -45,6 +45,32 @@ impl crate::traits::Convertable<PageFrameNumber> for usize {
     }
 }
 
+impl core::fmt::Display for PageFrameNumber {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl serde::Serialize for PageFrameNumber {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // Serialize as u64 to be portable across 32/64-bit targets.
+        serializer.serialize_u64(self.0 as u64)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for PageFrameNumber {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = u64::deserialize(deserializer)?;
+        Ok(PageFrameNumber(value as usize))
+    }
+}
+
 // === PhysicalAddress === //
 
 /// A physical memory address.
@@ -90,6 +116,31 @@ impl crate::traits::Convertable<PhysicalAddress> for usize {
     }
 }
 
+impl core::fmt::Display for PhysicalAddress {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:#x}", self.0)
+    }
+}
+
+impl serde::Serialize for PhysicalAddress {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u64(self.0 as u64)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for PhysicalAddress {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = u64::deserialize(deserializer)?;
+        Ok(PhysicalAddress(value as usize))
+    }
+}
+
 // === VirtualAddress === //
 
 /// A virtual memory address.
@@ -124,6 +175,31 @@ impl crate::traits::Convertable<usize> for VirtualAddress {
 impl crate::traits::Convertable<VirtualAddress> for usize {
     fn to(self) -> VirtualAddress {
         VirtualAddress(self)
+    }
+}
+
+impl core::fmt::Display for VirtualAddress {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:#x}", self.0)
+    }
+}
+
+impl serde::Serialize for VirtualAddress {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u64(self.0 as u64)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for VirtualAddress {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = u64::deserialize(deserializer)?;
+        Ok(VirtualAddress(value as usize))
     }
 }
 
