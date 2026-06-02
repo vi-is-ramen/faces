@@ -1,3 +1,5 @@
+use core::marker::Sized;
+
 /// Represents a set of flags that support common bitwise operations.
 ///
 /// This trait serves as a marker for types that can be combined, intersected,
