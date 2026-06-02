@@ -126,3 +126,93 @@ impl crate::traits::Convertable<VirtualAddress> for usize {
         VirtualAddress(self)
     }
 }
+
+/// Converts a virtual address into a shared reference of type `&'a T`.
+///
+/// This implementation of [`UnsafeConvertable`] allows a `VirtualAddress` to be
+/// interpreted as a reference to a value of type `T` located at that address
+/// in the virtual address space.
+///
+/// # Lifetimes
+/// * `'a` – The lifetime of the resulting reference. The caller must ensure
+///   that the memory at the virtual address remains valid and accessible for
+///   the entire duration `'a`.
+///
+/// # Type Parameter `T`
+/// The type `T` of the referenced value. No compile‑time checks guarantee that
+/// the memory actually contains a valid `T`; this is entirely a safety
+/// precondition for the caller.
+///
+/// # Safety
+/// The caller of this unsafe method must guarantee **all** of the following:
+/// * The virtual address (`self.0`) is correctly aligned for type `T`.
+/// * The memory at that address contains a valid value of type `T` (e.g., it
+///   has been properly initialized and is not a dangling pointer).
+/// * The memory remains valid and immutable for at least the lifetime `'a`
+///   (i.e., no mutable accesses occur concurrently or afterwards, and the
+///   memory is not deallocated or reused).
+/// * The virtual address is mapped and readable in the current address space.
+/// * No aliasing rules of Rust are violated (e.g., the same memory is not
+///   simultaneously borrowed mutably elsewhere).
+///
+/// Failure to uphold any of these conditions leads to undefined behavior.
+unsafe impl<'a, T> crate::traits::UnsafeConvertable<&'a T> for VirtualAddress {
+    unsafe fn to(self) -> &'a T {
+        unsafe {
+            (self.0 as *const T).as_ref_unchecked()
+        }
+    }
+}
+
+/// Converts a virtual address into a mutable reference of type `&'a mut T`.
+///
+/// This implementation of [`UnsafeConvertable`] allows a `VirtualAddress` to be
+/// interpreted as a mutable reference to a value of type `T` located at that
+/// address in the virtual address space. Because the reference is `mut`, the
+/// caller can modify the pointed-to memory, subject to Rust's aliasing rules.
+///
+/// # Lifetimes
+/// * `'a` – The lifetime of the resulting mutable reference. The caller must
+///   guarantee that the memory at the virtual address remains valid and
+///   exclusively accessible for the entire duration `'a`.
+///
+/// # Type Parameter `T`
+/// The type `T` of the referenced value. No compile‑time checks ensure that
+/// the memory actually contains a valid `T`; this is a safety precondition
+/// for the caller.
+///
+/// # Safety
+/// The caller of this unsafe method must guarantee **all** of the following:
+/// * The virtual address (`self.0`) is correctly aligned for type `T`.
+/// * The memory at that address contains a valid value of type `T` (properly
+///   initialized, not a dangling pointer).
+/// * The memory remains valid and **exclusively** accessible for the lifetime
+///   `'a` – no other references (shared or mutable) to the same memory may
+///   exist concurrently.
+/// * The virtual address is mapped and writable in the current address space.
+/// * The memory is not deallocated or reused during `'a`.
+/// * No data races occur – the caller must have appropriate synchronization
+///   if the address is shared across threads.
+///
+/// Failure to uphold any of these conditions leads to undefined behavior.
+///
+/// # Examples
+/// ```
+/// use faces::traits::{UnsafeConvertable, to};
+/// use faces::types::VirtualAddress;
+///
+/// let mut value = 42u32;
+/// let addr: VirtualAddress = to(&mut value as *mut u32 as usize);
+/// unsafe {
+///     let ref_mut: &mut u32 = addr.to();
+///     *ref_mut = 100;
+/// }
+/// assert_eq!(value, 100);
+/// ```
+unsafe impl<'a, T> crate::traits::UnsafeConvertable<&'a mut T> for VirtualAddress {
+    unsafe fn to(self) -> &'a mut T {
+        unsafe {
+            (self.0 as *mut T).as_mut_unchecked()
+        }
+    }
+}
