@@ -1,9 +1,9 @@
-use core::convert::From;
-use core::fmt::Debug;
-use core::marker::Copy;
 use core::clone::Clone;
+use core::convert::From;
 use core::convert::Into;
 use core::derive;
+use core::fmt::Debug;
+use core::marker::Copy;
 use core::result::{Result, Result::Ok};
 use core::write;
 
@@ -104,7 +104,7 @@ pub struct PhysicalAddress(usize);
 /// in which the address resides. Equivalent to `address >> 12`.
 impl From<PhysicalAddress> for PageFrameNumber {
     fn from(value: PhysicalAddress) -> PageFrameNumber {
-        PageFrameNumber(crate::traits::to::<usize, _>(value) << 12)
+        PageFrameNumber(crate::traits::to::<usize, _>(value) >> 12)
     }
 }
 

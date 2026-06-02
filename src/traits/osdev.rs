@@ -61,7 +61,7 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags> {
     ///
     /// # Panics
     /// May panic if `pfn` is not managed by this manager.
-    fn check_flags(&self, pfn: PFN, flag: F);
+    fn check_flags(&self, pfn: PFN, flag: F) -> bool;
 
     // ----- Synchronization -----
 

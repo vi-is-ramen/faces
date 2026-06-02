@@ -26,7 +26,6 @@
 //! were not originally designed to work together.
 
 #![allow(unused_imports)]
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod traits;
