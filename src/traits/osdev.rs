@@ -20,7 +20,7 @@ use crate::types::PageFrameNumber as PFN;
 /// Implementations must ensure that `lock()` and `free()` provide appropriate
 /// synchronization semantics (e.g., acquiring/releasing a spinlock, mutex, or similar).
 /// Counter operations (`inc*`, `dec*`, `get*`) are typically expected to be atomic.
-pub trait AbsPageFrameManager<F: crate::traits::AbsFlags> {
+pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T> {
     // ----- Flags -----
 
     /// Sets the specified flags on the given page frame.
@@ -103,37 +103,6 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags> {
     /// All valid PFNs for this manager satisfy `self.min() <= pfn <= self.max()`.
     fn max(&self) -> PFN;
 
-    // ----- Counters -----
-    // Four independent counters per frame, typically used for reference counting,
-    // page cache usage, or other allocation tracking.
-
-    /// Increments counter 0 for the given page frame.
-    fn inc0(&self, pfn: PFN);
-    /// Increments counter 1 for the given page frame.
-    fn inc1(&self, pfn: PFN);
-    /// Increments counter 2 for the given page frame.
-    fn inc2(&self, pfn: PFN);
-    /// Increments counter 3 for the given page frame.
-    fn inc3(&self, pfn: PFN);
-
-    /// Decrements counter 0 for the given page frame.
-    fn dec0(&self, pfn: PFN);
-    /// Decrements counter 1 for the given page frame.
-    fn dec1(&self, pfn: PFN);
-    /// Decrements counter 2 for the given page frame.
-    fn dec2(&self, pfn: PFN);
-    /// Decrements counter 3 for the given page frame.
-    fn dec3(&self, pfn: PFN);
-
-    /// Returns the current value of counter 0 for the given page frame.
-    fn get0(&self, pfn: PFN);
-    /// Returns the current value of counter 1 for the given page frame.
-    fn get1(&self, pfn: PFN);
-    /// Returns the current value of counter 2 for the given page frame.
-    fn get2(&self, pfn: PFN);
-    /// Returns the current value of counter 3 for the given page frame.
-    fn get3(&self, pfn: PFN);
-
     // ----- Presence -----
 
     /// Checks whether the given page frame is managed by this manager.
@@ -175,4 +144,61 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags> {
     /// # Returns
     /// A `*mut ()` pointing to the start of the frame's memory.
     unsafe fn get_mut(&self, pfn: PFN) -> *mut ();
+
+    // ----- Field access (with automatic locking) -----
+
+    /// Returns a shared reference to a specific field inside the page frame.
+    ///
+    /// This method locks the page frame for the entire duration of the returned
+    /// reference's lifetime `'a`. The lock is acquired automatically and released
+    /// only after the reference goes out of scope.
+    ///
+    /// # Type Parameters
+    /// * `U` – The type of the field to access. The implementation must ensure
+    ///   that the field selector `fid` correctly identifies a field of this type.
+    ///
+    /// # Arguments
+    /// * `pfn` – The page frame number.
+    /// * `fid` – A field selector (typically an enum) identifying which field to access.
+    ///
+    /// # Returns
+    /// A shared reference to the field, valid for the lifetime `'a`.
+    ///
+    /// # Safety
+    /// This method is `unsafe` because the implementation must guarantee:
+    /// - The field selector `fid` is valid for the given `pfn`.
+    /// - The returned reference does not outlive the frame’s lock.
+    /// - No mutable aliasing occurs (callers must not simultaneously call
+    ///   `field_mut` on the same frame while this reference exists).
+    /// - The memory layout of the field matches `U`.
+    ///
+    /// Implementations should document any additional safety conditions.
+    unsafe fn field<'a, U>(&self, pfn: PFN, fid: T) -> &'a U;
+
+    /// Returns a mutable reference to a specific field inside the page frame.
+    ///
+    /// This method locks the page frame for the entire duration of the returned
+    /// reference's lifetime `'a`. The lock is acquired automatically and released
+    /// only after the reference goes out of scope.
+    ///
+    /// # Type Parameters
+    /// * `U` – The type of the field to access. The implementation must ensure
+    ///   that the field selector `fid` correctly identifies a field of this type.
+    ///
+    /// # Arguments
+    /// * `pfn` – The page frame number.
+    /// * `fid` – A field selector (typically an enum) identifying which field to access.
+    ///
+    /// # Returns
+    /// A mutable reference to the field, valid for the lifetime `'a`.
+    ///
+    /// # Safety
+    /// This method is `unsafe` because the implementation must guarantee:
+    /// - The field selector `fid` is valid for the given `pfn`.
+    /// - The returned reference does not outlive the frame’s lock.
+    /// - No other references (shared or mutable) to the same field exist concurrently.
+    /// - The memory layout of the field matches `U`.
+    ///
+    /// Implementations should document any additional safety conditions.
+    unsafe fn field_mut<'a, U>(&self, pfn: PFN, fid: T) -> &'a mut U;
 }
