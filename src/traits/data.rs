@@ -23,13 +23,13 @@ use core::marker::Sized;
 /// enum MyFlags {
 ///     A, B, C
 /// };
-/// 
+///
 /// impl Convertable<u8> for MyFlags {
 ///     fn to(self) -> u8 {
 ///         *&self as u8
 ///     }
 /// }
-/// 
+///
 /// impl Convertable<MyFlags> for u8 {
 ///     fn to(self) -> MyFlags {
 ///         match self {

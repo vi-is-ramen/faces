@@ -1,3 +1,8 @@
+use core::convert::Into;
+use core::derive;
+use core::result::{Result, Result::Ok};
+use core::write;
+
 // === PageFrameNumber === //
 
 /// A page frame number (PFN) representing the index of a physical page frame.
@@ -21,9 +26,9 @@ pub struct PageFrameNumber(usize);
 ///
 /// The conversion assumes a page size of 4 KiB (4096 bytes), shifting the PFN left by 12 bits.
 /// This is the inverse of `PhysicalAddress::into::<PageFrameNumber>`.
-impl Into<PhysicalAddress> for PageFrameNumber {
-    fn into(self) -> PhysicalAddress {
-        PhysicalAddress(self.0 << 12)
+impl From<PageFrameNumber> for PhysicalAddress {
+    fn from(value: PageFrameNumber) -> Self {
+        PhysicalAddress(crate::traits::to::<usize, _>(value) << 12)
     }
 }
 
@@ -93,9 +98,9 @@ pub struct PhysicalAddress(usize);
 ///
 /// This discards the page offset (lowest 12 bits), yielding the PFN of the page
 /// in which the address resides. Equivalent to `address >> 12`.
-impl Into<PageFrameNumber> for PhysicalAddress {
-    fn into(self) -> PageFrameNumber {
-        PageFrameNumber(self.0 >> 12)
+impl From<PhysicalAddress> for PageFrameNumber {
+    fn from(value: PhysicalAddress) -> PageFrameNumber {
+        PageFrameNumber(crate::traits::to::<usize, _>(value) << 12)
     }
 }
 
@@ -234,9 +239,7 @@ impl<'de> serde::Deserialize<'de> for VirtualAddress {
 /// Failure to uphold any of these conditions leads to undefined behavior.
 unsafe impl<'a, T> crate::traits::UnsafeConvertable<&'a T> for VirtualAddress {
     unsafe fn to(self) -> &'a T {
-        unsafe {
-            (self.0 as *const T).as_ref_unchecked()
-        }
+        unsafe { (self.0 as *const T).as_ref_unchecked() }
     }
 }
 
@@ -287,8 +290,6 @@ unsafe impl<'a, T> crate::traits::UnsafeConvertable<&'a T> for VirtualAddress {
 /// ```
 unsafe impl<'a, T> crate::traits::UnsafeConvertable<&'a mut T> for VirtualAddress {
     unsafe fn to(self) -> &'a mut T {
-        unsafe {
-            (self.0 as *mut T).as_mut_unchecked()
-        }
+        unsafe { (self.0 as *mut T).as_mut_unchecked() }
     }
 }

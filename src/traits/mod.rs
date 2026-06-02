@@ -32,14 +32,14 @@
 //! use faces::traits::{Convertable, AbsFlags, Serialize, Deserialize, Log};
 //! ```
 
-pub mod osdev;
 pub mod conv;
 pub mod data;
-pub mod serde;
 pub mod log;
+pub mod osdev;
+pub mod serde;
 
-pub use osdev::*;
 pub use conv::*;
 pub use data::*;
-pub use serde::*;
 pub use log::*;
+pub use osdev::*;
+pub use serde::*;
