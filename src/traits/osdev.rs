@@ -1,32 +1,44 @@
 use crate::types::{PageFrameNumber as PFN, PhysicalAddress, VirtualAddress};
+use core::marker::Sync;
 
-/// Abstract interface for managing page frames with associated flags and counters.
+/// Abstract interface for managing page frames with associated flags, field selectors,
+/// and synchronisation guards.
 ///
 /// This trait defines the core operations for a page frame manager (PFM) that controls
 /// a range of physical or virtual page frames. Each frame is identified by a
 /// [`PageFrameNumber`] (PFN). The manager supports:
 /// - Flag operations (set, clear, check) using a generic flags type `F` that implements
 ///   [`AbsFlags`].
-/// - Synchronization primitives (lock, free) for mutual exclusion on individual frames.
-/// - Boundary queries (min/max PFN) to determine the managed range.
-/// - Four independent counters per frame (inc/dec/get) for reference counting or other uses.
+/// - Synchronisation primitives (`lock`, `free`) for mutual exclusion on individual frames.
+/// - Boundary queries (`min`/`max` PFN) to determine the managed range.
 /// - Presence check to test if a PFN belongs to this manager.
-/// - Raw pointer access (unsafe) to the memory associated with a frame.
+/// - Raw pointer access (unsafe) that returns synchronisation guards (`S`) instead of
+///   raw pointers directly – this allows the implementation to keep the frame locked
+///   as long as the guard lives.
 ///
 /// # Type Parameters
-/// * `F` – A flags type that implements [`AbsFlags`], used for per-frame flag operations.
+/// * `F` – A flags type that implements [`AbsFlags`], used for per‑frame flag operations.
+/// * `T` – A field selector type (typically an enum) used to identify specific fields
+///   inside a page frame. This parameter is reserved for future field‑level access
+///   methods (e.g., `field` and `field_mut`).
+/// * `S` – The type of synchronisation guard returned by `get_ptr` and `get_mut`.
+///   It must implement [`Sync`] because the guard is intended to be shared across
+///   threads while the frame is locked. Common examples are `MutexGuard<'_, ()>`
+///   or `SpinlockGuard<'_, ()>`.
 ///
 /// # Notes
-/// Implementations must ensure that `lock()` and `free()` provide appropriate
-/// synchronization semantics (e.g., acquiring/releasing a spinlock, mutex, or similar).
-/// Counter operations (`inc*`, `dec*`, `get*`) are typically expected to be atomic.
-pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T> {
+/// - Implementations must ensure that `lock()` and `free()` provide appropriate
+///   synchronisation semantics (e.g., acquiring/releasing a spinlock, mutex, or similar).
+/// - The `get_ptr` and `get_mut` methods return a guard instead of a raw pointer.
+///   This guard is typically a RAII lock guard that releases the lock when dropped,
+///   and it may provide access to the actual pointer via Deref or a custom method.
+pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T, S: Sync> {
     // ----- Flags -----
 
     /// Sets the specified flags on the given page frame.
     ///
     /// This operation performs a bitwise OR of the current flags with `flag`.
-    /// The exact concurrency behavior (e.g., atomicity) is implementation-defined,
+    /// The exact concurrency behaviour (e.g., atomicity) is implementation‑defined,
     /// but should be safe for concurrent calls.
     ///
     /// # Arguments
@@ -40,7 +52,7 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T> {
     /// Clears the specified flags on the given page frame.
     ///
     /// This operation performs a bitwise AND of the current flags with the complement of `flag`.
-    /// The exact concurrency behavior is implementation-defined.
+    /// The exact concurrency behaviour is implementation‑defined.
     ///
     /// # Arguments
     /// * `pfn` – The page frame number to modify.
@@ -67,7 +79,7 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T> {
 
     /// Locks the given page frame for exclusive access.
     ///
-    /// The exact locking semantics (spinlock, mutex, recursive, etc.) are implementation-defined.
+    /// The exact locking semantics (spinlock, mutex, recursive, etc.) are implementation‑defined.
     /// Typically, this must be called before performing a series of operations that require
     /// consistency. A matching call to [`free`](Self::free) should release the lock.
     ///
@@ -81,7 +93,7 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T> {
 
     /// Unlocks (frees) the given page frame, releasing a previously acquired lock.
     ///
-    /// This must be called after a successful [`lock`](Self::lock). The behavior is undefined
+    /// This must be called after a successful [`lock`](Self::lock). The behaviour is undefined
     /// if called on an unlocked frame or from a different context than the lock owner.
     ///
     /// # Arguments
@@ -112,95 +124,46 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T> {
     /// have additional restrictions beyond the numeric range.
     fn present(&self, pfn: PFN) -> bool;
 
-    // ----- Raw access -----
+    // ----- Raw access with guards -----
 
-    /// Returns a raw constant pointer to the memory associated with the given page frame.
+    /// Returns a synchronisation guard that provides access to the memory associated
+    /// with the given page frame as a constant pointer.
+    ///
+    /// The guard (`S`) typically implements [`Deref<Target = *const ()>`] or contains
+    /// a method to retrieve the pointer. It is responsible for keeping the frame
+    /// locked (or otherwise synchronised) for its lifetime.
     ///
     /// # Safety
     /// The caller must ensure that:
     /// - `pfn` is managed by this manager and is valid (e.g., not freed or unmapped).
-    /// - No mutable aliasing occurs; the returned pointer may be shared.
-    /// - The memory is not accessed after the frame is freed or reused.
+    /// - The returned guard is used in a way that does not violate aliasing rules.
     ///
     /// # Arguments
     /// * `pfn` – The page frame number.
     ///
     /// # Returns
-    /// A `*const ()` pointing to the start of the frame's memory.
-    unsafe fn get_ptr(&self, pfn: PFN) -> *const ();
+    /// A guard object of type `S` that synchronises access to the frame’s memory.
+    unsafe fn get_ptr(&self, pfn: PFN) -> S;
 
-    /// Returns a raw mutable pointer to the memory associated with the given page frame.
+    /// Returns a synchronisation guard that provides access to the memory associated
+    /// with the given page frame as a mutable pointer.
+    ///
+    /// The guard (`S`) typically implements [`DerefMut<Target = *mut ()>`] or contains
+    /// a method to retrieve the pointer. It is responsible for keeping the frame
+    /// locked (or otherwise synchronised) for its lifetime.
     ///
     /// # Safety
     /// The caller must ensure that:
     /// - `pfn` is managed by this manager and is valid.
     /// - No other references (mutable or immutable) exist to the same memory.
-    /// - Proper synchronization (e.g., through `lock`/`free`) is used to avoid data races.
-    /// - The memory is not accessed after the frame is freed or reused.
+    /// - Proper synchronisation (e.g., through the returned guard) is used.
     ///
     /// # Arguments
     /// * `pfn` – The page frame number.
     ///
     /// # Returns
-    /// A `*mut ()` pointing to the start of the frame's memory.
-    unsafe fn get_mut(&self, pfn: PFN) -> *mut ();
-
-    // ----- Field access (with automatic locking) -----
-
-    /// Returns a shared reference to a specific field inside the page frame.
-    ///
-    /// This method locks the page frame for the entire duration of the returned
-    /// reference's lifetime `'a`. The lock is acquired automatically and released
-    /// only after the reference goes out of scope.
-    ///
-    /// # Type Parameters
-    /// * `U` – The type of the field to access. The implementation must ensure
-    ///   that the field selector `fid` correctly identifies a field of this type.
-    ///
-    /// # Arguments
-    /// * `pfn` – The page frame number.
-    /// * `fid` – A field selector (typically an enum) identifying which field to access.
-    ///
-    /// # Returns
-    /// A shared reference to the field, valid for the lifetime `'a`.
-    ///
-    /// # Safety
-    /// This method is `unsafe` because the implementation must guarantee:
-    /// - The field selector `fid` is valid for the given `pfn`.
-    /// - The returned reference does not outlive the frame’s lock.
-    /// - No mutable aliasing occurs (callers must not simultaneously call
-    ///   `field_mut` on the same frame while this reference exists).
-    /// - The memory layout of the field matches `U`.
-    ///
-    /// Implementations should document any additional safety conditions.
-    unsafe fn field<'a, U>(&self, pfn: PFN, fid: T) -> &'a U;
-
-    /// Returns a mutable reference to a specific field inside the page frame.
-    ///
-    /// This method locks the page frame for the entire duration of the returned
-    /// reference's lifetime `'a`. The lock is acquired automatically and released
-    /// only after the reference goes out of scope.
-    ///
-    /// # Type Parameters
-    /// * `U` – The type of the field to access. The implementation must ensure
-    ///   that the field selector `fid` correctly identifies a field of this type.
-    ///
-    /// # Arguments
-    /// * `pfn` – The page frame number.
-    /// * `fid` – A field selector (typically an enum) identifying which field to access.
-    ///
-    /// # Returns
-    /// A mutable reference to the field, valid for the lifetime `'a`.
-    ///
-    /// # Safety
-    /// This method is `unsafe` because the implementation must guarantee:
-    /// - The field selector `fid` is valid for the given `pfn`.
-    /// - The returned reference does not outlive the frame’s lock.
-    /// - No other references (shared or mutable) to the same field exist concurrently.
-    /// - The memory layout of the field matches `U`.
-    ///
-    /// Implementations should document any additional safety conditions.
-    unsafe fn field_mut<'a, U>(&self, pfn: PFN, fid: T) -> &'a mut U;
+    /// A guard object of type `S` that synchronises mutable access to the frame’s memory.
+    unsafe fn get_mut(&self, pfn: PFN) -> S;
 }
 
 /// Abstract interface for translating virtual addresses to physical addresses and vice versa.
@@ -233,14 +196,14 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T> {
 /// impl AbsAddressTranslator for IdentityTranslator {
 ///     fn as_phys(v: VirtualAddress) -> PhysicalAddress {
 ///         // Identity mapping: virtual == physical
-///         to(to(v))
+///         to(to::<usize, _>(v))
 ///     }
 ///     fn as_virt(p: PhysicalAddress) -> VirtualAddress {
-///         to(to(p))
+///         to(to::<usize, _>(p))
 ///     }
 /// }
 ///
-/// let virt = to(0x1000u64 as usize);
+/// let virt = to(0x1000usize);
 /// let phys = IdentityTranslator::as_phys(virt);
 /// assert_eq!(to::<usize, _>(virt), to::<usize, _>(phys));
 /// ```
