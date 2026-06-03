@@ -25,6 +25,10 @@ use core::marker::Sync;
 ///   It must implement [`Sync`] because the guard is intended to be shared across
 ///   threads while the frame is locked. Common examples are `MutexGuard<'_, ()>`
 ///   or `SpinlockGuard<'_, ()>`.
+/// * `Sm` – The type of synchronisation guard returned by `get_ptr` and `get_mut`.
+///   It must implement [`Sync`] because the guard is intended to be shared across
+///   threads while the frame is locked. Common examples are `MutexGuard<'_, ()>`
+///   or `SpinlockGuard<'_, ()>`.
 ///
 /// # Notes
 /// - Implementations must ensure that `lock()` and `free()` provide appropriate
@@ -32,7 +36,7 @@ use core::marker::Sync;
 /// - The `get_ptr` and `get_mut` methods return a guard instead of a raw pointer.
 ///   This guard is typically a RAII lock guard that releases the lock when dropped,
 ///   and it may provide access to the actual pointer via Deref or a custom method.
-pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T, S: Sync> {
+pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T, S: Sync, Sm: Sync> {
     // ----- Flags -----
 
     /// Sets the specified flags on the given page frame.
@@ -162,8 +166,8 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T, S: Sync> {
     /// * `pfn` – The page frame number.
     ///
     /// # Returns
-    /// A guard object of type `S` that synchronises mutable access to the frame’s memory.
-    unsafe fn get_mut(&self, pfn: PFN) -> S;
+    /// A guard object of type `Sm` that synchronises mutable access to the frame’s memory.
+    unsafe fn get_mut(&self, pfn: PFN) -> Sm;
 }
 
 /// Abstract interface for translating virtual addresses to physical addresses and vice versa.
