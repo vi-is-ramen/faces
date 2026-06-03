@@ -1,4 +1,4 @@
-use crate::types::PageFrameNumber as PFN;
+use crate::types::{PageFrameNumber as PFN, PhysicalAddress, VirtualAddress};
 
 /// Abstract interface for managing page frames with associated flags and counters.
 ///
@@ -201,4 +201,98 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T> {
     ///
     /// Implementations should document any additional safety conditions.
     unsafe fn field_mut<'a, U>(&self, pfn: PFN, fid: T) -> &'a mut U;
+}
+
+/// Abstract interface for translating virtual addresses to physical addresses and vice versa.
+///
+/// This trait provides a bidirectional conversion between [`VirtualAddress`] and
+/// [`PhysicalAddress`]. It is intended for systems with a linear, deterministic
+/// mapping between the two address spaces – for example, when using identity mapping
+/// (virtual == physical) or a fixed offset.
+///
+/// # Correctness
+///
+/// **This trait is inherently unsafe to implement and use** in most real systems,
+/// because address translation depends on the current page tables, memory layout,
+/// and CPU state. Implementations must document any preconditions (e.g., that the
+/// address is mapped, that the translation is globally valid, or that the caller
+/// holds the appropriate locks).
+///
+/// Calling `as_phys` or `as_virt` may produce a meaningless or invalid address
+/// if the translation is not valid for the given input. It is the caller’s
+/// responsibility to ensure the address is translatable.
+///
+/// # Examples
+///
+/// ```
+/// # use faces::types::{VirtualAddress, PhysicalAddress};
+/// # use faces::traits::AbsAddressTranslator;
+/// # use faces::traits::to;
+/// struct IdentityTranslator;
+///
+/// impl AbsAddressTranslator for IdentityTranslator {
+///     fn as_phys(v: VirtualAddress) -> PhysicalAddress {
+///         // Identity mapping: virtual == physical
+///         to(to(v))
+///     }
+///     fn as_virt(p: PhysicalAddress) -> VirtualAddress {
+///         to(to(p))
+///     }
+/// }
+///
+/// let virt = to(0x1000u64 as usize);
+/// let phys = IdentityTranslator::as_phys(virt);
+/// assert_eq!(to::<usize, _>(virt), to::<usize, _>(phys));
+/// ```
+///
+/// # Platform‑specific notes
+///
+/// - On many kernels, a single global translation function exists for the
+///   current address space. Implementations may store a `&'static` reference
+///   to the active page table.
+/// - For systems with multiple address spaces (e.g., processes), the trait
+///   should be implemented on a context‑carrying type (like a `PageTable` or
+///   `AddressSpace`), rather than a zero‑sized type.
+/// - This trait does not provide any error handling – invalid addresses lead
+///   to unspecified results (e.g., garbage or a panic). Use fallible wrappers
+///   when needed.
+pub trait AbsAddressTranslator {
+    /// Converts a virtual address to the corresponding physical address.
+    ///
+    /// # Arguments
+    /// * `v` – A virtual address to translate.
+    ///
+    /// # Returns
+    /// The physical address that `v` maps to, according to the translation
+    /// rules defined by the implementor.
+    ///
+    /// # Safety / Correctness
+    /// Calling this method may be **unsound** if `v` is not a valid mapped
+    /// virtual address in the current translation context. Implementations
+    /// may panic, return an unmapped physical address, or produce a value
+    /// that leads to undefined behavior when used as a physical address.
+    ///
+    /// The caller must ensure that the translation is meaningful (e.g., the
+    /// virtual address is part of a known mapping, and the page tables are
+    /// not being concurrently modified).
+    fn as_phys(v: VirtualAddress) -> PhysicalAddress;
+
+    /// Converts a physical address to a virtual address.
+    ///
+    /// This is the inverse of [`as_phys`](Self::as_phys). Not all physical
+    /// addresses are mapped into the virtual address space; calling this
+    /// function may produce an invalid virtual address.
+    ///
+    /// # Arguments
+    /// * `p` – A physical address to translate.
+    ///
+    /// # Returns
+    /// A virtual address that (presumably) maps to `p`, according to the
+    /// translation rules defined by the implementor.
+    ///
+    /// # Safety / Correctness
+    /// The same safety considerations as [`as_phys`](Self::as_phys) apply.
+    /// The caller must know that `p` is actually mapped at the returned
+    /// virtual address and that the mapping is valid for the current context.
+    fn as_virt(p: PhysicalAddress) -> VirtualAddress;
 }
