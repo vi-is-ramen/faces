@@ -75,34 +75,6 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T, S: Sync, Sm: Sync> 
     /// May panic if `pfn` is not managed by this manager.
     fn check_flags(&self, pfn: PFN, flag: F) -> bool;
 
-    // ----- Synchronization -----
-
-    /// Locks the given page frame for exclusive access.
-    ///
-    /// The exact locking semantics (spinlock, mutex, recursive, etc.) are implementation‑defined.
-    /// Typically, this must be called before performing a series of operations that require
-    /// consistency. A matching call to [`free`](Self::free) should release the lock.
-    ///
-    /// # Arguments
-    /// * `pfn` – The page frame to lock.
-    ///
-    /// # Panics
-    /// May panic if `pfn` is not managed, or if the lock is already held by the same context
-    /// and recursive locks are not supported.
-    fn lock(&self, pfn: PFN);
-
-    /// Unlocks (frees) the given page frame, releasing a previously acquired lock.
-    ///
-    /// This must be called after a successful [`lock`](Self::lock). The behaviour is undefined
-    /// if called on an unlocked frame or from a different context than the lock owner.
-    ///
-    /// # Arguments
-    /// * `pfn` – The page frame to unlock.
-    ///
-    /// # Panics
-    /// May panic if `pfn` is not managed or if the lock is not currently held.
-    fn free(&self, pfn: PFN);
-
     // ----- Boundary -----
 
     /// Returns the smallest (starting) page frame number managed by this manager.
