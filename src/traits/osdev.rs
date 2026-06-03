@@ -9,29 +9,29 @@ use core::marker::Sync;
 /// [`PageFrameNumber`] (PFN). The manager supports:
 /// - Flag operations (set, clear, check) using a generic flags type `F` that implements
 ///   [`AbsFlags`].
-/// - Synchronisation primitives (`lock`, `free`) for mutual exclusion on individual frames.
 /// - Boundary queries (`min`/`max` PFN) to determine the managed range.
 /// - Presence check to test if a PFN belongs to this manager.
-/// - Raw pointer access (unsafe) that returns synchronisation guards (`S`) instead of
-///   raw pointers directly – this allows the implementation to keep the frame locked
-///   as long as the guard lives.
+/// - RAII‑style synchronised access to the frame’s memory via the `get` method,
+///   which returns a guard (`S`) that keeps the frame locked (or otherwise
+///   synchronised) for its lifetime.
 ///
 /// # Type Parameters
 /// * `F` – A flags type that implements [`AbsFlags`], used for per‑frame flag operations.
 /// * `T` – A field selector type (typically an enum) used to identify specific fields
 ///   inside a page frame. This parameter is reserved for future field‑level access
 ///   methods (e.g., `field` and `field_mut`).
-/// * `S` – The type of synchronisation guard returned by `get_ptr` and `get_mut`.
-///   It must implement [`Sync`] because the guard is intended to be shared across
-///   threads while the frame is locked. Common examples are `MutexGuard<'_, ()>`
-///   or `SpinlockGuard<'_, ()>`.
+/// * `S` – The type of synchronisation guard returned by `get`. It must implement
+///   [`Sync`] because the guard is intended to be shared across threads while the
+///   frame is locked. Common examples are `MutexGuard<'_, ()>` or `SpinlockGuard<'_, ()>`.
 ///
 /// # Notes
-/// - Implementations must ensure that `lock()` and `free()` provide appropriate
-///   synchronisation semantics (e.g., acquiring/releasing a spinlock, mutex, or similar).
-/// - The `get_ptr` and `get_mut` methods return a guard instead of a raw pointer.
-///   This guard is typically a RAII lock guard that releases the lock when dropped,
-///   and it may provide access to the actual pointer via Deref or a custom method.
+/// - The `get` method is the sole entry point for accessing frame memory. It
+///   typically acquires a lock (or other synchronisation primitive) and returns
+///   a guard that releases it on drop. The guard may provide access to a raw pointer
+///   via [`Deref`] or a custom method.
+/// - There are no separate `lock`/`free` methods – the guard handles everything.
+/// - Implementations may provide additional methods (e.g., for field access) using
+///   the same guard mechanism.
 pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T, S: Sync> {
     // ----- Flags -----
 
@@ -96,19 +96,22 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T, S: Sync> {
     /// have additional restrictions beyond the numeric range.
     fn present(&self, pfn: PFN) -> bool;
 
-    // ----- Raw access with guards -----
+    // ----- Synchronised raw access -----
 
     /// Returns a synchronisation guard that provides access to the memory associated
-    /// with the given page frame as a constant pointer.
+    /// with the given page frame.
     ///
-    /// The guard (`S`) typically implements [`Deref<Target = *const ()>`] or contains
-    /// a method to retrieve the pointer. It is responsible for keeping the frame
-    /// locked (or otherwise synchronised) for its lifetime.
+    /// The guard (`S`) is responsible for keeping the frame locked (or otherwise
+    /// synchronised) for its entire lifetime. It typically implements [`Deref`] with
+    /// a target type of `*const ()` or `*mut ()`, or provides methods to obtain a
+    /// pointer. The guard is returned as an RAII object – when it is dropped, the
+    /// lock is released.
     ///
     /// # Safety
     /// The caller must ensure that:
     /// - `pfn` is managed by this manager and is valid (e.g., not freed or unmapped).
-    /// - The returned guard is used in a way that does not violate aliasing rules.
+    /// - The returned guard is used in a way that does not violate aliasing rules
+    ///   (e.g., if the guard provides a mutable pointer, no other references exist).
     ///
     /// # Arguments
     /// * `pfn` – The page frame number.
