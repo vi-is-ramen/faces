@@ -23,7 +23,7 @@ use core::write;
 /// let addr: PhysicalAddress = pfn.into();
 /// assert_eq!(to::<usize, _>(addr), 42 << 12);
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct PageFrameNumber(usize);
 
 /// Converts a page frame number into its corresponding physical address.
@@ -95,7 +95,7 @@ impl<'de> serde::Deserialize<'de> for PageFrameNumber {
 /// let pfn: PageFrameNumber = addr.into();
 /// assert_eq!(to::<usize, _>(pfn), 1);
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct PhysicalAddress(usize);
 
 /// Converts a physical address into the page frame number that contains it.
@@ -167,7 +167,7 @@ impl<'de> serde::Deserialize<'de> for PhysicalAddress {
 /// assert_eq!(raw, 0x7fff_0000);
 /// let restored: VirtualAddress = to(raw);
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct VirtualAddress(usize);
 
 /// Converts a virtual address into the underlying `usize` value.
