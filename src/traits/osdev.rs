@@ -107,18 +107,12 @@ pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T, S: Sync> {
     /// pointer. The guard is returned as an RAII object – when it is dropped, the
     /// lock is released.
     ///
-    /// # Safety
-    /// The caller must ensure that:
-    /// - `pfn` is managed by this manager and is valid (e.g., not freed or unmapped).
-    /// - The returned guard is used in a way that does not violate aliasing rules
-    ///   (e.g., if the guard provides a mutable pointer, no other references exist).
-    ///
     /// # Arguments
     /// * `pfn` – The page frame number.
     ///
     /// # Returns
     /// A guard object of type `S` that synchronises access to the frame’s memory.
-    unsafe fn get(&self, pfn: PFN) -> S;
+    fn get(&self, pfn: PFN) -> S;
 }
 
 /// Abstract interface for translating virtual addresses to physical addresses and vice versa.
