@@ -32,7 +32,7 @@ use core::marker::Sync;
 /// - The `get_ptr` and `get_mut` methods return a guard instead of a raw pointer.
 ///   This guard is typically a RAII lock guard that releases the lock when dropped,
 ///   and it may provide access to the actual pointer via Deref or a custom method.
-pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T, S: Sync, Sm: Sync> {
+pub trait AbsPageFrameManager<F: crate::traits::AbsFlags, T, S: Sync> {
     // ----- Flags -----
 
     /// Sets the specified flags on the given page frame.
