@@ -336,7 +336,7 @@ impl<'de> ::serde::Deserialize<'de> for VirtualAddress {
 /// The caller must ensure that the virtual address points to a valid, properly
 /// initialised value of type `T` that lives for at least the lifetime `'a`.
 unsafe impl<'a, T> UnsafeConvertable<&'a T> for VirtualAddress {
-    unsafe fn unsafe_to(self) -> &'a T {
+    unsafe fn to(self) -> &'a T {
         unsafe { (self.0 as *const T).as_ref_unchecked() }
     }
 }
@@ -348,7 +348,7 @@ unsafe impl<'a, T> UnsafeConvertable<&'a T> for VirtualAddress {
 /// initialised value of type `T` that lives for at least the lifetime `'a`,
 /// and that no other references (shared or mutable) to the same memory exist.
 unsafe impl<'a, T> UnsafeConvertable<&'a mut T> for VirtualAddress {
-    unsafe fn unsafe_to(self) -> &'a mut T {
+    unsafe fn to(self) -> &'a mut T {
         unsafe { (self.0 as *mut T).as_mut_unchecked() }
     }
 }
