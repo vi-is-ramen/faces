@@ -1,22 +1,56 @@
-# Faces
+# faces
 
-This crate provides some primitives and a huge bunch of ready traits for any needs. It created especially for unifying interfaces between crates and software components and make it easier to create adapters between two incompatible APIs.
+[![Crates.io](https://img.shields.io/crates/v/faces.svg)](https://crates.io/crates/faces)
+[![Docs.rs](https://docs.rs/faces/badge.svg)](https://docs.rs/faces)
+[![License](https://img.shields.io/badge/license-MIT)](https://github.com/vi-is-ramen/faces#license)
+[![License](https://img.shields.io/badge/Apache--2.0-blue.svg)](https://github.com/vi-is-ramen/faces#license)
 
-## What is inside?
+**Faces** provides primitive types and a collection of ready‑to‑use traits that help
+unify interfaces between different crates and software components. It makes it
+easier to write adapters between two otherwise incompatible APIs.
 
-This crate split to two modules: `types` and `traits`. `types` contains some basic types/layouts (e. g. minimal implementation of u32 2D vector named `faces::types::uvec2`). `traits` consist of interfaces.
+> The name reflects the idea of a “face” – a common interface that different
+> systems can present to each other.
 
-## How to use it?
+## Where to learn more
 
-Ya 'now how to install it, so here is how to use it.
+This crate is intentionally designed to be **infinitely extended**, so it doesn't
+document every single trait or type here. Instead, please refer to the dedicated
+book article that explains the concepts and usage in depth:
 
-1. define module. For instance, you have module `softrender` which implements some simple 2D graphics on CPU.
-2. define what set of interfaces it have and requires. Let's say, it has interface `AbsSoftRenderer` which
-provides render function and requires `AbsShape` interface for each object you want to see on the screen.
-3. find ready bunch of traits you need in [docs](https://docs.rs/faces) of this crate or create your own
-on top of existing ones. Also, PRs and any kind of contribution is welcome. Who knows, maybe your cool trait
-is quite useful for others?
+&rarr; **[Faces – The Book](https://vi-is-ramen.github.io/book/en/my-crates/faces.html)**
+
+## Usage
+
+Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+faces = "0.1"
+```
+
+Then, in your code, import the traits you need:
+
+```rust
+use faces::*;
+
+// Example: Use the conversion traits
+let pfn = PageFrameNumber::new(42);
+let addr: PhysicalAddress = pfn.into();
+```
+
+## Features
+
+* **`std`** – enabled by default. Disable it for `no_std` environments.
+* **`serde`** – adds `Serialize` / `Deserialize` derives for address types.
+* **`log`** – re‑exports the `log::Log` trait.
+
+## Contributing
+
+Pull requests and any kind of contribution are very welcome! If you have a
+useful trait that others might benefit from, feel free to open a PR.
 
 ## License
 
-As always, either MIT or Apache-2.0 on your choice.
+This crate is dual‑licensed under the **MIT** license or the **Apache 2.0**
+license, at your option.

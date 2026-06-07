@@ -1,6 +1,6 @@
 [package]
 name = "faces"
-version = "0.1.21"
+version = "0.1.22"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Some primitives and a huge bunch of ready traits for any needs."
@@ -11,9 +11,11 @@ homepage = "https://github.com/vi-is-ramen/faces"
 repository = "https://github.com/vi-is-ramen/faces"
 
 [dependencies]
-log = { version = "0.4.31", default-features = false }
-serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+log = { version = "0.4.32", default-features = false, optional = true }
+serde = { version = "1.0.228", default-features = false, features = ["derive"], optional = true }
 
 [features]
-std = []
 default = ["std"]
+std = []
+serde = ["dep:serde"]
+log = ["dep:log"]
