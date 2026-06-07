@@ -43,7 +43,7 @@ pub unsafe trait UnsafeConvertable<T> {
     ///
     /// ## Safety
     /// The implementor must guarantee that the conversion is valid.
-    unsafe fn to(self) -> T;
+    unsafe fn unsafe_to(self) -> T;
 }
 
 /// An unsafe version of [`ConvertableRef`].
@@ -52,7 +52,7 @@ pub unsafe trait UnsafeConvertableRef<T> {
     ///
     /// ## Safety
     /// The implementor must guarantee that the conversion is valid.
-    unsafe fn to(&self) -> T;
+    unsafe fn unsafe_to(&self) -> T;
 }
 
 /// An unsafe version of [`ConvertableMut`].
@@ -61,23 +61,23 @@ pub unsafe trait UnsafeConvertableMut<T> {
     ///
     /// ## Safety
     /// The implementor must guarantee that the conversion is valid.
-    unsafe fn to(&mut self) -> T;
+    unsafe fn unsafe_to(&mut self) -> T;
 }
 
 /// Convenience function for [`UnsafeConvertable::to`].
 #[inline]
 pub unsafe fn unsafe_to<T, F: UnsafeConvertable<T>>(from: F) -> T {
-    unsafe { UnsafeConvertable::<T>::to(from) }
+    unsafe { UnsafeConvertable::<T>::unsafe_to(from) }
 }
 
 /// Convenience function for [`UnsafeConvertableRef::to`].
 #[inline]
 pub unsafe fn unsafe_ref_to<T, F: UnsafeConvertableRef<T>>(from: &F) -> T {
-    unsafe { UnsafeConvertableRef::<T>::to(from) }
+    unsafe { UnsafeConvertableRef::<T>::unsafe_to(from) }
 }
 
 /// Convenience function for [`UnsafeConvertableMut::to`].
 #[inline]
 pub unsafe fn unsafe_mut_to<T, F: UnsafeConvertableMut<T>>(from: &mut F) -> T {
-    unsafe { UnsafeConvertableMut::<T>::to(from) }
+    unsafe { UnsafeConvertableMut::<T>::unsafe_to(from) }
 }
