@@ -1,10 +1,5 @@
 # faces
 
-[![Crates.io](https://img.shields.io/crates/v/faces.svg)](https://crates.io/crates/faces)
-[![Docs.rs](https://docs.rs/faces/badge.svg)](https://docs.rs/faces)
-[![License](https://img.shields.io/badge/license-MIT)](https://github.com/vi-is-ramen/faces#license)
-[![License](https://img.shields.io/badge/Apache--2.0-blue.svg)](https://github.com/vi-is-ramen/faces#license)
-
 **Faces** provides primitive types and a collection of ready‑to‑use traits that help
 unify interfaces between different crates and software components. It makes it
 easier to write adapters between two otherwise incompatible APIs.
