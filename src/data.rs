@@ -7,4 +7,4 @@ use core::marker::Sized;
 /// Types implementing `AbsFlags` must support bitwise operations `BitOr`, `BitAnd`,
 /// and `Not`. This trait is typically used as a bound for flag types in other
 /// abstractions (e.g., page frame managers).
-pub trait AbsFlags: core::ops::BitOr + core::ops::BitAnd + core::ops::Not + From<usize> where Self: Sized {}
+pub trait AbsFlags: core::ops::BitOr + core::ops::BitAnd + core::ops::Not + From<usize> + Copy + Clone where Self: Sized {}
