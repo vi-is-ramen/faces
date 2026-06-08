@@ -352,3 +352,99 @@ unsafe impl<'a, T> UnsafeConvertable<&'a mut T> for VirtualAddress {
         unsafe { (self.0 as *mut T).as_mut_unchecked() }
     }
 }
+
+/// An abstract page table mapper.
+///
+/// This trait provides core operations to manage virtual‑to‑physical address mappings
+/// in a platform‑agnostic way. It allows protecting (mapping) a range of virtual
+/// addresses with platform‑specific flags, removing protections (unmapping), and
+/// querying existing page table entries.
+pub trait AbsMapper<F: AbsFlags, PageTable> {
+    /// The type of errors that can occur during mapping or query operations.
+    /// Must implement [`Debug`].
+    type Error: Debug;
+
+    /// Creates a new instance of the mapper.
+    fn new() -> Self;
+
+    /// Maps a range of virtual addresses to physical frames with the given flags.
+    ///
+    /// For each page in the range `[v, v + count * PAGE_SIZE)`, the virtual page
+    /// is mapped to the physical frame starting at `p + i * PAGE_SIZE` (where `i`
+    /// is the page index) with the specified `flags`.
+    ///
+    /// # Parameters
+    /// - `v`: Starting virtual address.
+    /// - `p`: Starting physical address.
+    /// - `count`: Number of consecutive pages to map.
+    /// - `flags`: Platform‑specific flags to apply to the mapping.
+    ///
+    /// # Errors
+    /// Returns an error if the address range is invalid, the mapping cannot be
+    /// performed (e.g., due to insufficient privileges), or if the underlying
+    /// platform rejects the operation.
+    fn protect(&mut self, v: VirtualAddress, p: PhysicalAddress, count: usize, flags: F) -> Result<(), Self::Error>;
+
+    /// Unmaps a range of virtual addresses.
+    ///
+    /// Removes any existing mapping for each page in the range
+    /// `[v, v + count * PAGE_SIZE)`. After this operation, accessing those
+    /// virtual addresses will typically cause a page fault.
+    ///
+    /// # Parameters
+    /// - `v`: Starting virtual address.
+    /// - `count`: Number of consecutive pages to unmap.
+    ///
+    /// # Errors
+    /// Returns an error if the address range is invalid or if the underlying
+    /// platform fails to remove the mappings.
+    fn unprotect(&mut self, v: VirtualAddress, count: usize) -> Result<(), Self::Error>;
+
+    /// Queries the page table entry for a given virtual address.
+    ///
+    /// Returns platform‑specific page table information (e.g., physical frame
+    /// number, access flags, presence status) associated with the mapping at `v`.
+    ///
+    /// # Parameters
+    /// - `v`: Virtual address to query.
+    ///
+    /// # Errors
+    /// Returns an error if the address is not mapped, the query fails, or if the
+    /// underlying page table cannot be accessed.
+    fn query(&self, v: VirtualAddress) -> Result<PageTable, Self::Error>;
+}
+
+/// An abstract page table mapper that accepts additional hints for performance or
+/// platform‑specific optimisations.
+///
+/// This trait extends [`AbsMapper`] with methods that allow passing a `hints`
+/// parameter. Hints can be used to convey information such as expected access
+/// patterns, cache policies, or other platform‑dependent guidance. The default
+/// hint type is `()`, meaning no hints are required.
+pub trait AbsHintedMapper<F: AbsFlags, PageTable, Hints = ()>: AbsMapper<F, PageTable> {
+    /// Maps a range of virtual addresses with the given flags and hints.
+    ///
+    /// Behaves identically to [`AbsMapper::protect`] but also accepts a `hints`
+    /// parameter that may influence how the mapping is established (e.g., prefetching,
+    /// large page hints, or NUMA node preferences).
+    ///
+    /// # Parameters
+    /// - `v`: Starting virtual address.
+    /// - `p`: Starting physical address.
+    /// - `count`: Number of consecutive pages to map.
+    /// - `flags`: Platform‑specific flags for the mapping.
+    /// - `hints`: Additional guidance for the mapper.
+    fn protect_hinted(&mut self, v: VirtualAddress, p: PhysicalAddress, count: usize, flags: F, hints: Hints) -> Result<(), Self::Error>;
+
+    /// Unmaps a range of virtual addresses with the given hints.
+    ///
+    /// Behaves identically to [`AbsMapper::unprotect`] but accepts a `hints`
+    /// parameter that may influence the unmapping operation (e.g., deferred TLB
+    /// invalidation hints).
+    ///
+    /// # Parameters
+    /// - `v`: Starting virtual address.
+    /// - `count`: Number of consecutive pages to unmap.
+    /// - `hints`: Additional guidance for the mapper.
+    fn unprotect_hinted(&mut self, v: VirtualAddress, count: usize, hints: Hints) -> Result<(), Self::Error>;
+}
